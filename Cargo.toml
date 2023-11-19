@@ -1,0 +1,21 @@
+[package]
+name = "june"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+actix-web = "4.4.0"
+dotenv = "0.15.0"
+env_logger = "0.10.1"
+ffprobe = "0.3.3"
+imagesize = "0.12.0"
+lazy_static = "1.4.0"
+log = "0.4.20"
+mime = "0.3.17"
+regex = "1.10.2"
+reqwest = "0.11.22"
+scraper = "0.18.1"
+serde = { features = ["derive"], version = "1.0.192" }
+serde_json = "1.0.108"
+tempfile = "3.8.1"
+validator = { features = ["derive"], version = "0.16.1" }

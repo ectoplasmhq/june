@@ -1,11 +1,6 @@
 name: Docker
 
 on:
-  pull_request:
-    branches:
-      - 'develop'
-    paths:
-      - '/Dockerfile'
   push:
     branches:
       - 'develop'
@@ -18,80 +13,35 @@ on:
       - '/README.md'
     tags:
       - '*'
-  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  publish:
-    needs: ['test']
+  build-and-push-image:
     runs-on: ubuntu-latest
-    if: github.event_name != 'pull_request'
+    permissions:
+      contents: read
+      packages: write
     steps:
-      - name: Checkout
-        uses: actions/checkout@v2
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Log in to the Container registry
+        uses: docker/login-action@65b78e6e13532edd9afa3aa52ac7964289d1a9c1
         with:
-          submodules: 'recursive'
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v1
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v1
-      - name: Cache amd64 Docker layers
-        uses: actions/cache@v2
-        with:
-          key: ${{ runner.os }}-buildx-linux/amd64-${{ github.sha }}
-          path: /tmp/.buildx-cache/linux/amd64
-      - name: Docker meta
-        id: meta
-        uses: docker/metadata-action@v3
-        with:
-          images: ghcr.io/ectoplasmhq/june
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v1
-        with:
-          password: ${{ secrets.GITHUB_TOKEN }}
-          registry: ghcr.io
+          registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
-      - name: Build and publish
-        uses: docker/build-push-action@v2
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@9ec57ed1fcdbf14dcef7dfbe97b2010124a938b7
         with:
-          cache-from: type=local,src=/tmp/.buildx-cache/linux/amd64
-          cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+      - name: Build and push Docker image
+        uses: docker/build-push-action@f2a1d5e99d037542a71f64918e516c093c6f3fc4
+        with:
           context: .
-          labels: ${{ steps.meta.outputs.labels }}
-          platforms: linux/amd64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
-      - name: Move cache
-        run: |
-          rm -rf /tmp/.buildx-cache
-          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
-  test:
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        architecture:
-          - 'linux/amd64'
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-        with:
-          submodules: 'recursive'
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v1
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v1
-      - name: Cache Docker layers
-        uses: actions/cache@v2
-        with:
-          key: ${{ runner.os }}-buildx-${{ matrix.architecture }}-${{ github.sha }}
-          path: /tmp/.buildx-cache/${{ matrix.architecture }}
-      - name: Build
-        uses: docker/build-push-action@v2
-        with:
-          cache-from: type=local,src=/tmp/.buildx-cache/${{ matrix.architecture }}
-          cache-to: type=local,dest=/tmp/.buildx-cache-new/${{ matrix.architecture }},mode=max
-          context: .
-          platforms: ${{ matrix.architecture }}
-      - name: Move cache
-        run: |
-          rm -rf /tmp/.buildx-cache/${{ matrix.architecture }}
-          mv /tmp/.buildx-cache-new/${{ matrix.architecture }} /tmp/.buildx-cache/${{ matrix.architecture }}
+          labels: ${{ steps.meta.outputs.labels }}
